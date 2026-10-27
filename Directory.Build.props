@@ -1,0 +1,21 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- CI should fail on any compiler warning, not just on dotnet format's style/whitespace checks. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Makes IDE-prefixed style rules part of the build itself, not just something `dotnet format`
+         checks separately. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- IDE0005 (remove unnecessary usings) specifically only runs during build with this enabled -
+         https://github.com/dotnet/roslyn/issues/41640. We don't want full XML-doc-comment coverage as
+         a side effect, so CS1591 (missing doc comment) is suppressed right below. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- IDE0005's default severity (Suggestion) doesn't block the build on its own, even with
+         EnforceCodeStyleInBuild - force it to error specifically. Plain MSBuild property, no severity
+         override file needed (.editorconfig is off-limits per the challenge README; skipped
+         .globalconfig too, to keep this to one file/mechanism instead of two). -->
+    <WarningsAsErrors>$(WarningsAsErrors);IDE0005</WarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

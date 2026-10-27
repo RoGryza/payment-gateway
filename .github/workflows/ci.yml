@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Start bank simulator
+        run: docker compose up -d bank_simulator
+
+      - name: Wait for bank simulator
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null http://localhost:8080/payments; then
+              echo "Bank simulator is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Bank simulator did not become ready in time" >&2
+          exit 1
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Check for vulnerable NuGet packages
+        run: |
+          dotnet list package --vulnerable --include-transitive > vulnerable-packages.txt
+          cat vulnerable-packages.txt
+          if grep -qE '\b(High|Critical)\b' vulnerable-packages.txt; then
+            echo "High or Critical severity vulnerable NuGet package(s) found" >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Lint (dotnet format)
+        run: dotnet format --verify-no-changes
+
+      - name: Test
+        run: dotnet test --no-build
+
+      - name: Build Docker image
+        run: docker build -f src/PaymentGateway.Api/Dockerfile -t payment-gateway-api .
+
+      # In a real application we'd publish the image if we're in main.
